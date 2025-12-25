@@ -125,10 +125,19 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Cache omni-dev binary
+      id: cache-omni-dev
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/omni-dev
+        key: omni-dev-${{ runner.os }}-${{ inputs.version }}
+
     - name: Setup Rust toolchain
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true'
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install omni-dev
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
