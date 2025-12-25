@@ -1,0 +1,13 @@
+scopes:
+  - name: "action"
+    description: "GitHub Action definition and composite steps"
+    examples: ["action: add verbose output flag", "action: fix commit range detection"]
+    file_patterns: ["action.yml"]
+  - name: "docs"
+    description: "Documentation, README, and examples"
+    examples: ["docs: add Bedrock usage example", "docs: update input descriptions"]
+    file_patterns: ["README.md", "*.md", "docs/**"]
+  - name: "ci"
+    description: "GitHub workflows and automation"
+    examples: ["ci: add release workflow", "ci: update test matrix"]
+    file_patterns: [".github/workflows/**", ".github/*.yml"]

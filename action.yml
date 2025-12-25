@@ -1,0 +1,256 @@
+name: 'Omni-Dev Commit Check'
+description: 'Validate commit messages against project guidelines using AI-powered analysis'
+author: 'rust-works'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  # API Keys - at least one required
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude models'
+    required: false
+  openai-api-key:
+    description: 'OpenAI API key (set use-openai: true to use)'
+    required: false
+
+  # Provider selection
+  use-openai:
+    description: 'Use OpenAI instead of Anthropic'
+    required: false
+    default: 'false'
+  use-ollama:
+    description: 'Use Ollama for local inference'
+    required: false
+    default: 'false'
+
+  # Model configuration
+  model:
+    description: 'AI model to use (e.g., claude-sonnet-4-5-20250929, gpt-4.1)'
+    required: false
+    default: 'claude-sonnet-4-5-20250929'
+
+  # Ollama-specific
+  ollama-base-url:
+    description: 'Ollama server URL (default: http://localhost:11434)'
+    required: false
+  ollama-model:
+    description: 'Ollama model name'
+    required: false
+
+  # AWS Bedrock configuration
+  use-bedrock:
+    description: 'Use AWS Bedrock for Claude'
+    required: false
+    default: 'false'
+  bedrock-base-url:
+    description: 'AWS Bedrock endpoint URL'
+    required: false
+  bedrock-auth-token:
+    description: 'AWS Bedrock auth token'
+    required: false
+
+  # Commit range configuration
+  commit-range:
+    description: 'Commit range to check (e.g., HEAD~5..HEAD). Defaults to commits ahead of base branch'
+    required: false
+  base-branch:
+    description: 'Base branch to compare against (defaults to main/master)'
+    required: false
+
+  # Guidelines configuration
+  guidelines:
+    description: 'Path to custom commit guidelines file'
+    required: false
+  context-dir:
+    description: 'Custom context directory for loading guidelines'
+    required: false
+    default: '.omni-dev/'
+
+  # Output configuration
+  format:
+    description: 'Output format: text, json, or yaml'
+    required: false
+    default: 'text'
+
+  # Behavior configuration
+  strict:
+    description: 'Exit with error code if any warnings found'
+    required: false
+    default: 'false'
+  quiet:
+    description: 'Only show errors/warnings, suppress info-level output'
+    required: false
+    default: 'false'
+  verbose:
+    description: 'Show detailed analysis including model info'
+    required: false
+    default: 'false'
+  show-passing:
+    description: 'Include passing commits in output'
+    required: false
+    default: 'false'
+  no-suggestions:
+    description: 'Skip generating corrected message suggestions'
+    required: false
+    default: 'false'
+
+  # Performance configuration
+  batch-size:
+    description: 'Number of commits to process per AI request'
+    required: false
+    default: '4'
+
+  # Version configuration
+  version:
+    description: 'omni-dev version to use (e.g., 0.12.0, latest)'
+    required: false
+    default: 'latest'
+
+outputs:
+  result:
+    description: 'Check result in the specified format'
+  exit-code:
+    description: 'Exit code from the check (0=success, 1=errors, 2=warnings with strict)'
+  total-commits:
+    description: 'Total number of commits checked'
+  passing-commits:
+    description: 'Number of commits that passed'
+  error-count:
+    description: 'Number of errors found'
+  warning-count:
+    description: 'Number of warnings found'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install omni-dev
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          cargo install omni-dev
+        else
+          cargo install omni-dev --version "$VERSION"
+        fi
+
+    - name: Run commit check
+      id: check
+      shell: bash
+      env:
+        # API Keys
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+
+        # Provider flags
+        USE_OPENAI: ${{ inputs.use-openai }}
+        USE_OLLAMA: ${{ inputs.use-ollama }}
+
+        # Model configuration - only set if provided to avoid empty string issues
+        ANTHROPIC_MODEL: ${{ inputs.model || '' }}
+        OPENAI_MODEL: ${{ inputs.model || '' }}
+        OLLAMA_MODEL: ${{ inputs.ollama-model || '' }}
+        OLLAMA_BASE_URL: ${{ inputs.ollama-base-url || '' }}
+
+        # Bedrock configuration
+        CLAUDE_CODE_USE_BEDROCK: ${{ inputs.use-bedrock }}
+        ANTHROPIC_BEDROCK_BASE_URL: ${{ inputs.bedrock-base-url || '' }}
+        ANTHROPIC_AUTH_TOKEN: ${{ inputs.bedrock-auth-token || '' }}
+      run: |
+        # Unset empty optional variables to let omni-dev use defaults
+        [ -z "$OLLAMA_MODEL" ] && unset OLLAMA_MODEL
+        [ -z "$OLLAMA_BASE_URL" ] && unset OLLAMA_BASE_URL
+        [ -z "$ANTHROPIC_BEDROCK_BASE_URL" ] && unset ANTHROPIC_BEDROCK_BASE_URL
+        [ -z "$ANTHROPIC_AUTH_TOKEN" ] && unset ANTHROPIC_AUTH_TOKEN
+
+        # Build command arguments
+        ARGS=()
+
+        # Add optional flags
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          ARGS+=("--strict")
+        fi
+
+        if [ "${{ inputs.quiet }}" = "true" ]; then
+          ARGS+=("--quiet")
+        fi
+
+        if [ "${{ inputs.verbose }}" = "true" ]; then
+          ARGS+=("--verbose")
+        fi
+
+        if [ "${{ inputs.show-passing }}" = "true" ]; then
+          ARGS+=("--show-passing")
+        fi
+
+        if [ "${{ inputs.no-suggestions }}" = "true" ]; then
+          ARGS+=("--no-suggestions")
+        fi
+
+        # Add optional parameters
+        if [ -n "${{ inputs.model }}" ]; then
+          ARGS+=("--model" "${{ inputs.model }}")
+        fi
+
+        if [ -n "${{ inputs.guidelines }}" ]; then
+          ARGS+=("--guidelines" "${{ inputs.guidelines }}")
+        fi
+
+        if [ -n "${{ inputs.context-dir }}" ]; then
+          ARGS+=("--context-dir" "${{ inputs.context-dir }}")
+        fi
+
+        if [ -n "${{ inputs.format }}" ]; then
+          ARGS+=("--format" "${{ inputs.format }}")
+        fi
+
+        if [ -n "${{ inputs.batch-size }}" ]; then
+          ARGS+=("--batch-size" "${{ inputs.batch-size }}")
+        fi
+
+        # Add commit range if specified
+        if [ -n "${{ inputs.commit-range }}" ]; then
+          ARGS+=("${{ inputs.commit-range }}")
+        elif [ -n "${{ inputs.base-branch }}" ]; then
+          # Calculate range from base branch
+          ARGS+=("${{ inputs.base-branch }}..HEAD")
+        elif [ -n "$GITHUB_BASE_REF" ]; then
+          # In a PR context, use the PR base branch
+          ARGS+=("origin/$GITHUB_BASE_REF..HEAD")
+        fi
+
+        # Run the check command and capture output
+        set +e
+        OUTPUT=$(omni-dev git commit message check "${ARGS[@]}" 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        # Output to console
+        echo "$OUTPUT"
+
+        # Set outputs using environment files
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # For multiline output, use heredoc syntax
+        {
+          echo "result<<EOF"
+          echo "$OUTPUT"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
+        # Parse summary if JSON format
+        if [ "${{ inputs.format }}" = "json" ]; then
+          TOTAL=$(echo "$OUTPUT" | jq -r '.summary.total_commits // 0' 2>/dev/null || echo "0")
+          PASSING=$(echo "$OUTPUT" | jq -r '.summary.passing_commits // 0' 2>/dev/null || echo "0")
+          ERRORS=$(echo "$OUTPUT" | jq -r '.summary.total_errors // 0' 2>/dev/null || echo "0")
+          WARNINGS=$(echo "$OUTPUT" | jq -r '.summary.total_warnings // 0' 2>/dev/null || echo "0")
+
+          echo "total-commits=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passing-commits=$PASSING" >> $GITHUB_OUTPUT
+          echo "error-count=$ERRORS" >> $GITHUB_OUTPUT
+          echo "warning-count=$WARNINGS" >> $GITHUB_OUTPUT
+        fi
+
+        # Exit with the original exit code
+        exit $EXIT_CODE
