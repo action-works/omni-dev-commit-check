@@ -7,7 +7,7 @@ This project follows conventional commit format with specific requirements.
 | Severity | Sections                                                               |
 |----------|------------------------------------------------------------------------|
 | error    | Commit Format, Types, Scopes, Subject Line, Accuracy, Breaking Changes |
-| warning  | Body Guidelines                                                        |
+| warning  | Body Guidelines, Scope Specificity                                     |
 | info     | Subject Line Style                                                     |
 
 ## Commit Format
@@ -25,6 +25,10 @@ Multiple scopes can be specified using comma separation:
 ```
 <type>(<scope1>,<scope2>): <description>
 ```
+
+## Scope Specificity
+
+The type and scope may be the same (e.g., `ci(ci)`, `docs(docs)`) when the change category matches the area of code modified. However, prefer a more specific scope when possible (e.g., `ci(action)` over `ci(ci)` if the CI change is in the action definition).
 
 ## Types
 
