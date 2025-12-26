@@ -44,15 +44,33 @@ Required. Must be one of:
 | `test`     | Test additions or modifications                       |
 | `ci`       | CI/CD pipeline changes                                |
 
+### Type Precedence
+
+When a commit includes multiple types of changes, use the type that reflects the **primary functional change**:
+
+- If adding a new feature AND updating docs to describe it → use `feat`
+- If fixing a bug AND updating docs about it → use `fix`
+- If ONLY updating documentation with no functional changes → use `docs`
+
+The type should reflect what the code does, not what files were touched. Documentation updates that accompany functional changes are expected and don't change the commit type.
+
 ## Scopes
 
 Required. Use scopes defined in `.omni-dev/scopes.yaml`:
 
-- `action` - GitHub Action definition and composite steps
+- `action` - GitHub Action definition and composite steps (`action.yml`)
 - `docs` - Documentation (README, examples, guidelines)
-- `ci` - GitHub workflows and automation
+- `ci` - GitHub workflows and automation (`.github/workflows/`)
 
-Multiple scopes are allowed when a change spans multiple areas (e.g., `fix(action,ci): ...`).
+### Multiple Scopes
+
+When a commit modifies files in multiple scope areas, **all relevant scopes must be listed**:
+
+- Modifying `action.yml` AND `README.md` → use `feat(action,docs): ...`
+- Modifying `action.yml` AND `.github/workflows/` → use `feat(action,ci): ...`
+- Modifying only `action.yml` → use `feat(action): ...`
+
+This is required even when documentation updates are incidental to the primary change. The scopes should reflect all areas of code that were modified.
 
 ## Subject Line
 
@@ -97,7 +115,7 @@ For breaking changes:
 fix(action): handle missing API key gracefully
 ```
 
-### Feature with body
+### Feature with body (single scope)
 ```
 feat(action): add AWS Bedrock provider support
 
@@ -107,6 +125,19 @@ Adds new inputs for AWS Bedrock configuration:
 - bedrock-auth-token: Authentication token
 
 Closes #5
+```
+
+### Feature with documentation (multiple scopes)
+```
+feat(action,docs): add cache-prefix input for customizable cache keys
+
+Adds new cache-prefix input that allows users to prepend a custom
+prefix to the cache key used for storing the omni-dev binary.
+
+Changes:
+- Add cache-prefix input parameter to action.yml
+- Update cache key template to incorporate the prefix
+- Document the new input in README
 ```
 
 ### Documentation update
