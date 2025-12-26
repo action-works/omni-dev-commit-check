@@ -118,6 +118,12 @@ inputs:
     required: false
     default: 'latest'
 
+  # Main branch behavior
+  skip-on-main:
+    description: 'Skip commit check when running on main/master branch (cache will still be populated)'
+    required: false
+    default: 'true'
+
 outputs:
   result:
     description: 'Check result in the specified format'
@@ -184,6 +190,22 @@ runs:
         # Debug configuration
         RUST_LOG: ${{ inputs.debug == 'true' && 'debug' || '' }}
       run: |
+        # Detect if we're on main/master branch (not in a PR)
+        IS_MAIN_BRANCH="false"
+        if [ -z "$GITHUB_BASE_REF" ]; then
+          # Not a PR - check if we're on main or master
+          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$GITHUB_REF" = "refs/heads/master" ]; then
+            IS_MAIN_BRANCH="true"
+          fi
+        fi
+
+        if [ "$IS_MAIN_BRANCH" = "true" ] && [ "${{ inputs.skip-on-main }}" = "true" ]; then
+          echo "Running on main branch - skipping commit check (cache populated)"
+          echo "exit-code=0" >> $GITHUB_OUTPUT
+          echo "result=Skipped on main branch" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
         # Unset empty optional variables to let omni-dev use defaults
         [ -z "$OLLAMA_MODEL" ] && unset OLLAMA_MODEL
         [ -z "$OLLAMA_BASE_URL" ] && unset OLLAMA_BASE_URL
