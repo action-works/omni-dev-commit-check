@@ -34,108 +34,114 @@ jobs:
 
 ### API Keys
 
-| Input | Description | Required |
-|-------|-------------|----------|
-| `anthropic-api-key` | Anthropic API key for Claude models | No* |
-| `openai-api-key` | OpenAI API key | No* |
+| Input               | Description                          | Required |
+|---------------------|--------------------------------------|----------|
+| `anthropic-api-key` | Anthropic API key for Claude models  | No*      |
+| `openai-api-key`    | OpenAI API key                       | No*      |
 
 *At least one API key is required unless using Ollama.
 
 ### Provider Selection
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `use-openai` | Use OpenAI instead of Anthropic | `false` |
-| `use-ollama` | Use Ollama for local inference | `false` |
+| Input        | Description                       | Default |
+|--------------|-----------------------------------|---------|
+| `use-openai` | Use OpenAI instead of Anthropic   | `false` |
+| `use-ollama` | Use Ollama for local inference    | `false` |
 
 ### Model Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
+| Input   | Description                                                   | Default          |
+|---------|---------------------------------------------------------------|------------------|
 | `model` | AI model to use (e.g., `claude-opus-4-5-20251101`, `gpt-4.1`) | Provider default |
 
 ### Ollama Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `ollama-base-url` | Ollama server URL | `http://localhost:11434` |
-| `ollama-model` | Ollama model name | - |
+| Input             | Description        | Default                   |
+|-------------------|--------------------|---------------------------|
+| `ollama-base-url` | Ollama server URL  | `http://localhost:11434`  |
+| `ollama-model`    | Ollama model name  | -                         |
 
 ### AWS Bedrock Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `use-bedrock` | Use AWS Bedrock for Claude | `false` |
-| `bedrock-base-url` | AWS Bedrock endpoint URL | - |
-| `bedrock-auth-token` | AWS Bedrock auth token | - |
+| Input                | Description                 | Default |
+|----------------------|-----------------------------|---------|
+| `use-bedrock`        | Use AWS Bedrock for Claude  | `false` |
+| `bedrock-base-url`   | AWS Bedrock endpoint URL    | -       |
+| `bedrock-auth-token` | AWS Bedrock auth token      | -       |
 
 ### Commit Range Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `commit-range` | Commit range to check (e.g., `HEAD~5..HEAD`) | Auto-detected |
-| `base-branch` | Base branch to compare against | `main`/`master` |
+| Input          | Description                                      | Default         |
+|----------------|--------------------------------------------------|-----------------|
+| `commit-range` | Commit range to check (e.g., `HEAD~5..HEAD`)     | Auto-detected   |
+| `base-branch`  | Base branch to compare against                   | `main`/`master` |
 
 ### Guidelines Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `guidelines` | Path to custom commit guidelines file | Auto-discovered |
-| `context-dir` | Custom context directory for loading guidelines | `.omni-dev/` |
+| Input         | Description                                      | Default         |
+|---------------|--------------------------------------------------|-----------------|
+| `guidelines`  | Path to custom commit guidelines file            | Auto-discovered |
+| `context-dir` | Custom context directory for loading guidelines  | `.omni-dev/`    |
 
 ### Output Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `format` | Output format: `text`, `json`, or `yaml` | `text` |
+| Input    | Description                              | Default |
+|----------|------------------------------------------|---------|
+| `format` | Output format: `text`, `json`, or `yaml` | `text`  |
 
 ### Behavior Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `strict` | Exit with error code if any warnings found | `false` |
-| `quiet` | Only show errors/warnings, suppress info-level output | `false` |
-| `verbose` | Show detailed analysis including model info | `false` |
-| `show-passing` | Include passing commits in output | `false` |
-| `no-suggestions` | Skip generating corrected message suggestions | `false` |
+| Input            | Description                                           | Default |
+|------------------|-------------------------------------------------------|---------|
+| `strict`         | Exit with error code if any warnings found            | `false` |
+| `quiet`          | Only show errors/warnings, suppress info-level output | `false` |
+| `verbose`        | Show detailed analysis including model info           | `false` |
+| `show-passing`   | Include passing commits in output                     | `false` |
+| `no-suggestions` | Skip generating corrected message suggestions         | `false` |
 
 ### Performance Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `batch-size` | Number of commits to process per AI request | `4` |
+| Input        | Description                                  | Default |
+|--------------|----------------------------------------------|---------|
+| `batch-size` | Number of commits to process per AI request  | `4`     |
 
 ### Version Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `version` | omni-dev version to use (e.g., `0.12.0`) | `latest` |
+| Input     | Description                                | Default  |
+|-----------|--------------------------------------------|----------|
+| `version` | omni-dev version to use (e.g., `0.12.0`)   | `latest` |
 
 ### Main Branch Behavior
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `skip-on-main` | Skip commit check when running on main/master branch (cache will still be populated) | `true` |
+| Input          | Description                                                                          | Default |
+|----------------|--------------------------------------------------------------------------------------|---------|
+| `skip-on-main` | Skip commit check when running on main/master branch (cache will still be populated) | `true`  |
+
+### Cache Configuration
+
+| Input          | Description                                                | Default |
+|----------------|------------------------------------------------------------|---------|
+| `cache-prefix` | Prefix to prepend to the cache key for the omni-dev binary | `''`    |
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `result` | Full check result in the specified format |
-| `exit-code` | Exit code (0=success, 1=errors, 2=warnings with strict) |
-| `total-commits` | Total number of commits checked (JSON format only) |
-| `passing-commits` | Number of commits that passed (JSON format only) |
-| `error-count` | Number of errors found (JSON format only) |
-| `warning-count` | Number of warnings found (JSON format only) |
+| Output            | Description                                             |
+|-------------------|---------------------------------------------------------|
+| `result`          | Full check result in the specified format               |
+| `exit-code`       | Exit code (0=success, 1=errors, 2=warnings with strict) |
+| `total-commits`   | Total number of commits checked (JSON format only)      |
+| `passing-commits` | Number of commits that passed (JSON format only)        |
+| `error-count`     | Number of errors found (JSON format only)               |
+| `warning-count`   | Number of warnings found (JSON format only)             |
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success: All commits pass |
-| 1 | One or more commits have errors |
-| 2 | Warnings found (only with `strict: true`) |
-| 3 | No commits found in range |
+| Code | Meaning                                    |
+|------|--------------------------------------------|
+| 0    | Success: All commits pass                  |
+| 1    | One or more commits have errors            |
+| 2    | Warnings found (only with `strict: true`)  |
+| 3    | No commits found in range                  |
 
 ## Examples
 
@@ -235,11 +241,11 @@ Create a `.omni-dev/commit-guidelines.md` file in your repository:
 
 ## Severity Levels
 
-| Severity | Sections |
-|----------|----------|
+| Severity | Sections             |
+|----------|----------------------|
 | error    | Format, Subject Line |
-| warning  | Content, Body |
-| info     | Style |
+| warning  | Content, Body        |
+| info     | Style                |
 
 ## Format
 - Use conventional commit format: `type(scope): description`
