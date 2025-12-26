@@ -111,6 +111,12 @@ jobs:
 |-------|-------------|---------|
 | `version` | omni-dev version to use (e.g., `0.12.0`) | `latest` |
 
+### Main Branch Behavior
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `skip-on-main` | Skip commit check when running on main/master branch (cache will still be populated) | `true` |
+
 ## Outputs
 
 | Output | Description |
