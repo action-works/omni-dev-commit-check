@@ -124,6 +124,12 @@ inputs:
     required: false
     default: 'true'
 
+  # Cache configuration
+  cache-prefix:
+    description: 'Prefix to prepend to the cache key for the omni-dev binary'
+    required: false
+    default: ''
+
 outputs:
   result:
     description: 'Check result in the specified format'
@@ -146,7 +152,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin/omni-dev
-        key: omni-dev-${{ runner.os }}-${{ inputs.version }}
+        key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ inputs.version }}
 
     - name: Setup Rust toolchain
       if: steps.cache-omni-dev.outputs.cache-hit != 'true'
