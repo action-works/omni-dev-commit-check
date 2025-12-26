@@ -20,6 +20,12 @@ This project follows conventional commit format with specific requirements.
 [optional footer(s)]
 ```
 
+Multiple scopes can be specified using comma separation:
+
+```
+<type>(<scope1>,<scope2>): <description>
+```
+
 ## Types
 
 Required. Must be one of:
@@ -41,6 +47,8 @@ Required. Use scopes defined in `.omni-dev/scopes.yaml`:
 - `action` - GitHub Action definition and composite steps
 - `docs` - Documentation (README, examples, guidelines)
 - `ci` - GitHub workflows and automation
+
+Multiple scopes are allowed when a change spans multiple areas (e.g., `fix(action,ci): ...`).
 
 ## Subject Line
 
@@ -100,6 +108,11 @@ Closes #5
 ### Documentation update
 ```
 docs(docs): add examples for JSON output processing
+```
+
+### Multiple scopes
+```
+feat(action,ci): add debug logging support
 ```
 
 ### Breaking change

@@ -50,6 +50,10 @@ inputs:
   bedrock-auth-token:
     description: 'AWS Bedrock auth token'
     required: false
+  skip-bedrock-auth:
+    description: 'Skip Bedrock authentication (for proxied endpoints)'
+    required: false
+    default: 'false'
 
   # Commit range configuration
   commit-range:
@@ -175,6 +179,7 @@ runs:
         CLAUDE_CODE_USE_BEDROCK: ${{ inputs.use-bedrock }}
         ANTHROPIC_BEDROCK_BASE_URL: ${{ inputs.bedrock-base-url || '' }}
         ANTHROPIC_AUTH_TOKEN: ${{ inputs.bedrock-auth-token || '' }}
+        CLAUDE_CODE_SKIP_BEDROCK_AUTH: ${{ inputs.skip-bedrock-auth }}
 
         # Debug configuration
         RUST_LOG: ${{ inputs.debug == 'true' && 'debug' || '' }}

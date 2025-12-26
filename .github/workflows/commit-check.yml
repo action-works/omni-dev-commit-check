@@ -18,3 +18,4 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           verbose: true
           version: "0.12.0"
+          debug: true
