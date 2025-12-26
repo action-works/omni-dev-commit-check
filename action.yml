@@ -102,6 +102,12 @@ inputs:
     required: false
     default: '4'
 
+  # Debug configuration
+  debug:
+    description: 'Enable debug logging (sets RUST_LOG=debug)'
+    required: false
+    default: 'false'
+
   # Version configuration
   version:
     description: 'omni-dev version to use (e.g., 0.12.0, latest)'
@@ -169,12 +175,16 @@ runs:
         CLAUDE_CODE_USE_BEDROCK: ${{ inputs.use-bedrock }}
         ANTHROPIC_BEDROCK_BASE_URL: ${{ inputs.bedrock-base-url || '' }}
         ANTHROPIC_AUTH_TOKEN: ${{ inputs.bedrock-auth-token || '' }}
+
+        # Debug configuration
+        RUST_LOG: ${{ inputs.debug == 'true' && 'debug' || '' }}
       run: |
         # Unset empty optional variables to let omni-dev use defaults
         [ -z "$OLLAMA_MODEL" ] && unset OLLAMA_MODEL
         [ -z "$OLLAMA_BASE_URL" ] && unset OLLAMA_BASE_URL
         [ -z "$ANTHROPIC_BEDROCK_BASE_URL" ] && unset ANTHROPIC_BEDROCK_BASE_URL
         [ -z "$ANTHROPIC_AUTH_TOKEN" ] && unset ANTHROPIC_AUTH_TOKEN
+        [ -z "$RUST_LOG" ] && unset RUST_LOG
 
         # Build command arguments
         ARGS=()
