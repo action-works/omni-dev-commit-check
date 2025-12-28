@@ -114,7 +114,7 @@ inputs:
 
   # Version configuration
   version:
-    description: 'omni-dev version to use (e.g., 0.12.0, latest)'
+    description: 'omni-dev version to use (e.g., 0.13.0, latest)'
     required: false
     default: 'latest'
 
@@ -129,6 +129,12 @@ inputs:
     description: 'Prefix to prepend to the cache key for the omni-dev binary'
     required: false
     default: ''
+
+  # Installation method
+  use-prebuilt-binary:
+    description: 'Download pre-built binary from GitHub releases instead of building from source via cargo install'
+    required: false
+    default: 'true'
 
 outputs:
   result:
@@ -152,17 +158,115 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin/omni-dev
-        key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ inputs.version }}
+        key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}-${{ inputs.use-prebuilt-binary == 'true' && 'binary' || 'cargo' }}
 
-    - name: Setup Rust toolchain
-      if: steps.cache-omni-dev.outputs.cache-hit != 'true'
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Install omni-dev
-      if: steps.cache-omni-dev.outputs.cache-hit != 'true'
+    - name: Determine platform and download URL
+      id: platform
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
+
+        # Determine the release tag
+        if [ "$VERSION" = "latest" ]; then
+          RELEASE_TAG=$(curl -s https://api.github.com/repos/rust-works/omni-dev/releases/latest | jq -r '.tag_name')
+          if [ -z "$RELEASE_TAG" ] || [ "$RELEASE_TAG" = "null" ]; then
+            echo "binary-available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Could not determine latest release tag"
+            exit 0
+          fi
+        else
+          RELEASE_TAG="v$VERSION"
+        fi
+        echo "release-tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+
+        # Determine platform-specific binary name
+        OS="${{ runner.os }}"
+        ARCH="${{ runner.arch }}"
+
+        case "$OS" in
+          Linux)
+            BINARY_NAME="omni-dev-linux.tar.gz"
+            ;;
+          macOS)
+            if [ "$ARCH" = "ARM64" ]; then
+              BINARY_NAME="omni-dev-macos-arm64.tar.gz"
+            else
+              # x64 macOS binary not available yet
+              echo "binary-available=false" >> $GITHUB_OUTPUT
+              echo "available-platforms=Linux, macOS-ARM64, Windows" >> $GITHUB_OUTPUT
+              echo "::warning::Pre-built binary not available for macOS x64. Available platforms: Linux, macOS-ARM64, Windows. Set 'use-prebuilt-binary: false' to build from source."
+              exit 0
+            fi
+            ;;
+          Windows)
+            BINARY_NAME="omni-dev-windows.zip"
+            ;;
+          *)
+            echo "binary-available=false" >> $GITHUB_OUTPUT
+            echo "available-platforms=Linux, macOS-ARM64, Windows" >> $GITHUB_OUTPUT
+            echo "::warning::Pre-built binary not available for $OS. Available platforms: Linux, macOS-ARM64, Windows. Set 'use-prebuilt-binary: false' to build from source."
+            exit 0
+            ;;
+        esac
+
+        DOWNLOAD_URL="https://github.com/rust-works/omni-dev/releases/download/${RELEASE_TAG}/${BINARY_NAME}"
+
+        # Verify the binary exists
+        HTTP_STATUS=$(curl -sL -o /dev/null -w "%{http_code}" "$DOWNLOAD_URL")
+        if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "302" ]; then
+          echo "binary-available=false" >> $GITHUB_OUTPUT
+          echo "available-platforms=Linux, macOS-ARM64, Windows" >> $GITHUB_OUTPUT
+          echo "::warning::Pre-built binary not found at $DOWNLOAD_URL (HTTP $HTTP_STATUS). The version '$VERSION' may not have pre-built binaries. Set 'use-prebuilt-binary: false' to build from source, or use a version with available binaries."
+          exit 0
+        fi
+
+        echo "binary-available=true" >> $GITHUB_OUTPUT
+        echo "download-url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+        echo "binary-name=$BINARY_NAME" >> $GITHUB_OUTPUT
+
+    - name: Download pre-built binary
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true' && steps.platform.outputs.binary-available == 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/.cargo/bin
+        DOWNLOAD_URL="${{ steps.platform.outputs.download-url }}"
+        BINARY_NAME="${{ steps.platform.outputs.binary-name }}"
+
+        echo "Downloading omni-dev from $DOWNLOAD_URL"
+        curl -sL "$DOWNLOAD_URL" -o "/tmp/$BINARY_NAME"
+
+        # Extract based on file type
+        if [[ "$BINARY_NAME" == *.zip ]]; then
+          unzip -q "/tmp/$BINARY_NAME" -d /tmp/omni-dev-extract
+          # Find the binary (could be omni-dev.exe on Windows)
+          find /tmp/omni-dev-extract -name "omni-dev*" -type f | head -1 | xargs -I {} mv {} ~/.cargo/bin/omni-dev
+        else
+          tar -xzf "/tmp/$BINARY_NAME" -C /tmp
+          mv /tmp/omni-dev ~/.cargo/bin/omni-dev
+        fi
+
+        chmod +x ~/.cargo/bin/omni-dev
+        echo "Successfully installed omni-dev from pre-built binary"
+        ~/.cargo/bin/omni-dev --version
+
+    - name: Fail if binary not available
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true' && steps.platform.outputs.binary-available == 'false'
+      shell: bash
+      run: |
+        echo "::error::Pre-built binary not available for this platform/version. Set 'use-prebuilt-binary: false' to build from source."
+        exit 1
+
+    - name: Setup Rust toolchain
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install omni-dev from source
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        echo "Installing omni-dev via cargo install..."
         if [ "$VERSION" = "latest" ]; then
           cargo install omni-dev
         else

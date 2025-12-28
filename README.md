@@ -123,6 +123,30 @@ jobs:
 |----------------|------------------------------------------------------------|---------|
 | `cache-prefix` | Prefix to prepend to the cache key for the omni-dev binary | `''`    |
 
+### Installation Method
+
+| Input                 | Description                                                                         | Default |
+|-----------------------|-------------------------------------------------------------------------------------|---------|
+| `use-prebuilt-binary` | Download pre-built binary from GitHub releases instead of building from source      | `true`  |
+
+By default, the action downloads pre-built binaries from [omni-dev releases](https://github.com/rust-works/omni-dev/releases), which is significantly faster than building from source.
+
+**Available platforms for pre-built binaries:**
+- Linux (x64)
+- macOS (ARM64)
+- Windows (x64)
+
+If a pre-built binary is not available for your platform or version, the action will display a warning with available options and automatically fall back to building from source via `cargo install`.
+
+To explicitly disable binary downloads and always build from source:
+
+```yaml
+- uses: rust-works/omni-dev-commit-check@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    use-prebuilt-binary: false
+```
+
 ## Outputs
 
 | Output            | Description                                             |
@@ -264,7 +288,7 @@ Create a `.omni-dev/commit-guidelines.md` file in your repository:
 ## Requirements
 
 - Repository must be checked out with `fetch-depth: 0` for full commit history
-- Rust toolchain (automatically available on GitHub-hosted runners)
+- Rust toolchain (only required if using `use-prebuilt-binary: false` or if pre-built binaries are not available for your platform)
 - At least one AI provider configured
 
 ## License
