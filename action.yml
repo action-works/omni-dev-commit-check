@@ -114,7 +114,7 @@ inputs:
 
   # Version configuration
   version:
-    description: 'omni-dev version to use (e.g., 0.12.0, latest)'
+    description: 'omni-dev version to use (e.g., 0.13.0, latest)'
     required: false
     default: 'latest'
 
@@ -250,12 +250,19 @@ runs:
         echo "Successfully installed omni-dev from pre-built binary"
         ~/.cargo/bin/omni-dev --version
 
+    - name: Fail if binary not available
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true' && steps.platform.outputs.binary-available == 'false'
+      shell: bash
+      run: |
+        echo "::error::Pre-built binary not available for this platform/version. Set 'use-prebuilt-binary: false' to build from source."
+        exit 1
+
     - name: Setup Rust toolchain
-      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && (inputs.use-prebuilt-binary != 'true' || steps.platform.outputs.binary-available == 'false')
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install omni-dev from source
-      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && (inputs.use-prebuilt-binary != 'true' || steps.platform.outputs.binary-available == 'false')
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
