@@ -156,6 +156,10 @@ runs:
         path: ~/.cargo/bin/omni-dev
         key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}-${{ inputs.use-prebuilt-binary == 'true' && 'binary' || 'cargo' }}
 
+    - name: Add cargo bin to PATH
+      shell: bash
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
     - name: Determine platform and download URL
       id: platform
       if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true'
