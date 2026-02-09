@@ -110,7 +110,7 @@ inputs:
 
   # Version configuration
   version:
-    description: 'omni-dev version to use (e.g., 0.13.0, latest)'
+    description: 'omni-dev version to use (e.g., 0.15.0, latest)'
     required: false
     default: 'latest'
 
@@ -149,12 +149,29 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Resolve omni-dev version
+      id: resolve-version
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          RELEASE_TAG=$(curl -s https://api.github.com/repos/rust-works/omni-dev/releases/latest | jq -r '.tag_name')
+          if [ -z "$RELEASE_TAG" ] || [ "$RELEASE_TAG" = "null" ]; then
+            echo "::error::Could not determine latest omni-dev version from GitHub releases"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          echo "Resolved latest omni-dev version: $VERSION"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "release-tag=v$VERSION" >> $GITHUB_OUTPUT
+
     - name: Cache omni-dev binary
       id: cache-omni-dev
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin/omni-dev
-        key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}-${{ inputs.use-prebuilt-binary == 'true' && 'binary' || 'cargo' }}
+        key: ${{ inputs.cache-prefix }}omni-dev-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve-version.outputs.version }}-${{ inputs.use-prebuilt-binary == 'true' && 'binary' || 'cargo' }}
 
     - name: Add cargo bin to PATH
       shell: bash
@@ -165,20 +182,7 @@ runs:
       if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary == 'true'
       shell: bash
       run: |
-        VERSION="${{ inputs.version }}"
-
-        # Determine the release tag
-        if [ "$VERSION" = "latest" ]; then
-          RELEASE_TAG=$(curl -s https://api.github.com/repos/rust-works/omni-dev/releases/latest | jq -r '.tag_name')
-          if [ -z "$RELEASE_TAG" ] || [ "$RELEASE_TAG" = "null" ]; then
-            echo "binary-available=false" >> $GITHUB_OUTPUT
-            echo "::warning::Could not determine latest release tag"
-            exit 0
-          fi
-        else
-          RELEASE_TAG="v$VERSION"
-        fi
-        echo "release-tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+        RELEASE_TAG="${{ steps.resolve-version.outputs.release-tag }}"
 
         # Determine platform-specific binary name
         OS="${{ runner.os }}"
@@ -265,13 +269,13 @@ runs:
       if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
       shell: bash
       run: |
-        VERSION="${{ inputs.version }}"
-        echo "Installing omni-dev via cargo install..."
-        if [ "$VERSION" = "latest" ]; then
-          cargo install omni-dev
-        else
-          cargo install omni-dev --version "$VERSION"
-        fi
+        VERSION="${{ steps.resolve-version.outputs.version }}"
+        echo "Installing omni-dev $VERSION via cargo install..."
+        cargo install omni-dev --version "$VERSION"
+
+    - name: Print omni-dev version
+      shell: bash
+      run: omni-dev --version
 
     - name: Run commit check
       id: check
