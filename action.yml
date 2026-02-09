@@ -273,6 +273,10 @@ runs:
           cargo install omni-dev --version "$VERSION"
         fi
 
+    - name: Print omni-dev version
+      shell: bash
+      run: omni-dev --version
+
     - name: Run commit check
       id: check
       shell: bash
