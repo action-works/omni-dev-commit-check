@@ -261,6 +261,11 @@ runs:
         echo "::error::Pre-built binary not available for this platform/version. Set 'use-prebuilt-binary: false' to build from source."
         exit 1
 
+    - name: Install system dependencies for source build
+      if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true' && runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
     - name: Setup Rust toolchain
       if: steps.cache-omni-dev.outputs.cache-hit != 'true' && inputs.use-prebuilt-binary != 'true'
       uses: dtolnay/rust-toolchain@stable
