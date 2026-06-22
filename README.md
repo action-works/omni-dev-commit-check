@@ -107,9 +107,10 @@ jobs:
 
 ### Version Configuration
 
-| Input     | Description                                | Default  |
-|-----------|--------------------------------------------|----------|
-| `version` | omni-dev version to use (e.g., `0.12.0`)   | `latest` |
+| Input          | Description                                                                                            | Default               |
+|----------------|--------------------------------------------------------------------------------------------------------|-----------------------|
+| `version`      | omni-dev version to use (e.g., `0.12.0`)                                                                | `latest`              |
+| `github-token` | Token authenticating the `releases/latest` lookup used by `version: latest` (1000/hr vs 60/hr limit)   | `${{ github.token }}` |
 
 ### Main Branch Behavior
 
