@@ -1,5 +1,5 @@
 name: 'Omni-Dev Commit Check'
-description: 'Validate commit messages against project guidelines using AI-powered analysis'
+description: 'Validate commit messages against project guidelines using AI-powered analysis or deterministic linting'
 author: 'rust-works'
 
 branding:
@@ -7,12 +7,18 @@ branding:
   color: 'green'
 
 inputs:
-  # API Keys - at least one required
+  # Command selection
+  command:
+    description: 'omni-dev subcommand to run: "check" (AI-powered analysis) or "lint" (deterministic, no AI/API key required, needs omni-dev >= 0.40.0). Defaults to "check" for backwards compatibility.'
+    required: false
+    default: 'check'
+
+  # API Keys - at least one required for command: check; unused for command: lint
   anthropic-api-key:
-    description: 'Anthropic API key for Claude models'
+    description: 'Anthropic API key for Claude models (ignored when command: lint)'
     required: false
   openai-api-key:
-    description: 'OpenAI API key (set use-openai: true to use)'
+    description: 'OpenAI API key (set use-openai: true to use; ignored when command: lint)'
     required: false
 
   # Provider selection
@@ -27,7 +33,7 @@ inputs:
 
   # Model configuration
   model:
-    description: 'AI model to use (e.g., claude-sonnet-4-5-20250929, gpt-4.1)'
+    description: 'AI model to use (e.g., claude-sonnet-4-5-20250929, gpt-4.1). Ignored when command: lint'
     required: false
     default: 'claude-sonnet-4-5-20250929'
 
@@ -61,7 +67,7 @@ inputs:
 
   # Guidelines configuration
   guidelines:
-    description: 'Path to custom commit guidelines file'
+    description: 'Path to custom commit guidelines file (ignored when command: lint, which uses .omni-dev/commit-rules.yaml and .omni-dev/scopes.yaml instead)'
     required: false
   context-dir:
     description: 'Custom context directory for loading guidelines'
@@ -84,7 +90,7 @@ inputs:
     required: false
     default: 'false'
   verbose:
-    description: 'Show detailed analysis including model info'
+    description: 'Show detailed analysis (model info for command: check; resolved rules/scopes config for command: lint)'
     required: false
     default: 'false'
   show-passing:
@@ -92,13 +98,13 @@ inputs:
     required: false
     default: 'false'
   no-suggestions:
-    description: 'Skip generating corrected message suggestions'
+    description: 'Skip generating corrected message suggestions. Ignored when command: lint'
     required: false
     default: 'false'
 
   # Performance configuration
   batch-size:
-    description: 'Number of commits to process per AI request'
+    description: 'Number of commits to process per AI request. Ignored when command: lint'
     required: false
     default: '4'
 
@@ -138,17 +144,23 @@ inputs:
 
 outputs:
   result:
-    description: 'Check result in the specified format'
+    description: 'Check/lint result in the specified format'
+    value: ${{ steps.check.outputs.result }}
   exit-code:
-    description: 'Exit code from the check (0=success, 1=errors, 2=warnings with strict)'
+    description: 'Exit code from the check/lint (0=success, 1=errors, 2=warnings with strict)'
+    value: ${{ steps.check.outputs.exit-code }}
   total-commits:
-    description: 'Total number of commits checked'
+    description: 'Total number of commits checked (JSON format only)'
+    value: ${{ steps.check.outputs.total-commits }}
   passing-commits:
-    description: 'Number of commits that passed'
+    description: 'Number of commits that passed (JSON format only)'
+    value: ${{ steps.check.outputs.passing-commits }}
   error-count:
-    description: 'Number of errors found'
+    description: 'Number of errors found (JSON format only)'
+    value: ${{ steps.check.outputs.error-count }}
   warning-count:
-    description: 'Number of warnings found'
+    description: 'Number of warnings found (JSON format only)'
+    value: ${{ steps.check.outputs.warning-count }}
 
 runs:
   using: 'composite'
@@ -308,7 +320,7 @@ runs:
       shell: bash
       run: omni-dev --version
 
-    - name: Run commit check
+    - name: Run commit check or lint
       id: check
       shell: bash
       env:
@@ -334,6 +346,16 @@ runs:
         # Debug configuration
         RUST_LOG: ${{ inputs.debug == 'true' && 'debug' || '' }}
       run: |
+        # Validate the command input
+        COMMAND="${{ inputs.command }}"
+        case "$COMMAND" in
+          check|lint) ;;
+          *)
+            echo "::error::Invalid 'command' input: '$COMMAND'. Must be 'check' or 'lint'."
+            exit 1
+            ;;
+        esac
+
         # Detect if we're on main/master branch (not in a PR)
         IS_MAIN_BRANCH="false"
         if [ -z "$GITHUB_BASE_REF" ]; then
@@ -344,7 +366,7 @@ runs:
         fi
 
         if [ "$IS_MAIN_BRANCH" = "true" ] && [ "${{ inputs.skip-on-main }}" = "true" ]; then
-          echo "Running on main branch - skipping commit check (cache populated)"
+          echo "Running on main branch - skipping commit $COMMAND (cache populated)"
           echo "exit-code=0" >> $GITHUB_OUTPUT
           echo "result=Skipped on main branch" >> $GITHUB_OUTPUT
           exit 0
@@ -360,7 +382,7 @@ runs:
         # Build command arguments
         ARGS=()
 
-        # Add optional flags
+        # Flags shared by both `check` and `lint`
         if [ "${{ inputs.strict }}" = "true" ]; then
           ARGS+=("--strict")
         fi
@@ -377,29 +399,36 @@ runs:
           ARGS+=("--show-passing")
         fi
 
-        if [ "${{ inputs.no-suggestions }}" = "true" ]; then
-          ARGS+=("--no-suggestions")
-        fi
-
-        # Add optional parameters
-        if [ -n "${{ inputs.model }}" ]; then
-          ARGS+=("--model" "${{ inputs.model }}")
-        fi
-
-        if [ -n "${{ inputs.guidelines }}" ]; then
-          ARGS+=("--guidelines" "${{ inputs.guidelines }}")
-        fi
-
         if [ -n "${{ inputs.context-dir }}" ]; then
           ARGS+=("--context-dir" "${{ inputs.context-dir }}")
         fi
 
-        if [ -n "${{ inputs.format }}" ]; then
-          ARGS+=("--format" "${{ inputs.format }}")
-        fi
+        if [ "$COMMAND" = "check" ]; then
+          # AI-pipeline-only flags; `lint` is deterministic and doesn't accept them
+          if [ "${{ inputs.no-suggestions }}" = "true" ]; then
+            ARGS+=("--no-suggestions")
+          fi
 
-        if [ -n "${{ inputs.batch-size }}" ]; then
-          ARGS+=("--batch-size" "${{ inputs.batch-size }}")
+          if [ -n "${{ inputs.model }}" ]; then
+            ARGS+=("--model" "${{ inputs.model }}")
+          fi
+
+          if [ -n "${{ inputs.guidelines }}" ]; then
+            ARGS+=("--guidelines" "${{ inputs.guidelines }}")
+          fi
+
+          if [ -n "${{ inputs.format }}" ]; then
+            ARGS+=("--format" "${{ inputs.format }}")
+          fi
+
+          if [ -n "${{ inputs.batch-size }}" ]; then
+            ARGS+=("--batch-size" "${{ inputs.batch-size }}")
+          fi
+        else
+          # `lint` uses -o/--output; it has no --format alias
+          if [ -n "${{ inputs.format }}" ]; then
+            ARGS+=("--output" "${{ inputs.format }}")
+          fi
         fi
 
         # Add commit range if specified
@@ -413,9 +442,9 @@ runs:
           ARGS+=("origin/$GITHUB_BASE_REF..HEAD")
         fi
 
-        # Run the check command and capture output
+        # Run the check/lint command and capture output
         set +e
-        OUTPUT=$(omni-dev git commit message check "${ARGS[@]}" 2>&1)
+        OUTPUT=$(omni-dev git commit message "$COMMAND" "${ARGS[@]}" 2>&1)
         EXIT_CODE=$?
         set -e
 
@@ -432,12 +461,13 @@ runs:
           echo "EOF"
         } >> $GITHUB_OUTPUT
 
-        # Parse summary if JSON format
+        # Parse summary if JSON format (both `check` and `lint` emit the same
+        # CheckReport shape)
         if [ "${{ inputs.format }}" = "json" ]; then
           TOTAL=$(echo "$OUTPUT" | jq -r '.summary.total_commits // 0' 2>/dev/null || echo "0")
           PASSING=$(echo "$OUTPUT" | jq -r '.summary.passing_commits // 0' 2>/dev/null || echo "0")
-          ERRORS=$(echo "$OUTPUT" | jq -r '.summary.total_errors // 0' 2>/dev/null || echo "0")
-          WARNINGS=$(echo "$OUTPUT" | jq -r '.summary.total_warnings // 0' 2>/dev/null || echo "0")
+          ERRORS=$(echo "$OUTPUT" | jq -r '.summary.error_count // 0' 2>/dev/null || echo "0")
+          WARNINGS=$(echo "$OUTPUT" | jq -r '.summary.warning_count // 0' 2>/dev/null || echo "0")
 
           echo "total-commits=$TOTAL" >> $GITHUB_OUTPUT
           echo "passing-commits=$PASSING" >> $GITHUB_OUTPUT
